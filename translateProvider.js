@@ -1,6 +1,7 @@
 const googleTranslate = require("google-translate-api-browser");
 const fs = require("fs").promises;
 const OpenAI = require("openai");
+require("dotenv").config();
 
 var count = 0;
 async function translateTextWithRetry(
@@ -22,7 +23,7 @@ async function translateTextWithRetry(
         const textToTranslate = texts.join(" ||| ");
         result = await googleTranslate.translate(textToTranslate, {
           to: targetLanguage,
-          corsUrl: "http://cors-anywhere.herokuapp.com/",
+          corsUrl: process.env.CORS_URL || "http://cors-anywhere.herokuapp.com/",
         });
         resultArray = result.text.split("|||");
         if (texts.length !== resultArray.length && resultArray.length > 0) {

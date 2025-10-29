@@ -101,8 +101,8 @@ const getsubtitles = async (
     }
 
     // 3. If no English subtitle found, return the first available subtitle of any language
-    
-    
+    const firstAvailableSubtitle = subtitles[0];
+
     return [{ url: firstAvailableSubtitle.url, lang: firstAvailableSubtitle.lang }];
 
   } catch (error) {
