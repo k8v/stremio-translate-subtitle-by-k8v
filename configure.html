@@ -125,36 +125,42 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="translateto">Translate To</label>
-                <select id="translateto" name="translateto" required>
-                </select>
-            </div>
+         <div class="form-group">
+                    <label for="translateto">Translate To</label>
+                <select id="translateto" name="translateto" required>
+                </select>
+            </div>
 
+            <div class="form-group" id="tmdbApikeyGroup">
+                <label for="tmdb_apikey">
+                    TMDb API Key (Required for GestDown/Series Search)
+                    <a href="https://www.themoviedb.org/settings/api" target="_blank" style="font-weight: normal; color: #007bff; text-decoration: none; font-size: 13px;">[API Key]</a>
+                </label>
+                <input type="text" id="tmdb_apikey" name="tmdb_apikey" placeholder="Enter your TMDb API key (Series only)">
+            </div>
             <div id="aiFields" class="chatgpt-fields hidden">
-                <h3 id="aiFieldsTitle">AI Configuration</h3>
+                    <h3 id="aiFieldsTitle">AI Configuration</h3>
 
-                <div class="form-group">
-                    <label for="apikey">API Key</label>
-                    <input type="text" id="apikey" name="apikey" placeholder="Enter your API key">
-                </div>
-
-                <div class="form-group" id="modelSelectGroup">
-                    <label for="model_select">Model</label>
-                    <select id="model_select" class="input">
-                    </select>
-                </div>
-
-                <div class="form-group hidden" id="baseUrlGroup">
-                    <label for="base_url">API Base URL</label>
-                    <input type="text" id="base_url" name="base_url" placeholder="https://api.example.com/v1">
-                </div>
-
-                <div class="form-group hidden" id="modelNameGroup">
-                    <label for="model_name">Model Name</label>
-                    <input type="text" id="model_name" name="model_name" placeholder="model-name">
-                </div>
+            <div class="form-group">
+                    <label for="apikey">API Key</label>
+                    <input type="text" id="apikey" name="apikey" placeholder="Enter your API key">
             </div>
+                
+            <div class="form-group" id="modelSelectGroup">
+                    <label for="model_select">Model</label>
+                    <select id="model_select" class="input">
+                    </select>
+            </div>
+            <div class="form-group hidden" id="baseUrlGroup">
+                    <label for="base_url">API Base URL</label>
+                    <input type="text" id="base_url" name="base_url" placeholder="https://api.example.com/v1">
+             </div>
+
+            <div class="form-group hidden" id="modelNameGroup">
+                    <label for="model_name">Model Name</label>
+                    <input type="text" id="model_name" name="model_name" placeholder="model-name">
+            </div>
+         </div>
 
             <button type="submit" class="btn">Install Addon</button>
 
@@ -294,6 +300,7 @@
                 provider: provider,
                 translateto: document.getElementById('translateto').value,
                 apikey: document.getElementById('apikey').value || '',
+                tmdb_apikey: document.getElementById('tmdb_apikey').value || '', 
                 base_url: base_url,
                 model_name: model_name
             };
@@ -302,7 +309,14 @@
             const host = baseUrl.replace(/^https?:\/\//, '');
             const installUrl = `stremio://${host}/${configStr}/manifest.json`;
 
-            window.location.href = installUrl;
+            // 💡 NOUVELLE LOGIQUE : Copie dans le presse-papiers
+            navigator.clipboard.writeText(installUrl).then(() => {
+                alert("URL copied to clipboard!");
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                // Fallback si la copie échoue (par exemple, permissions manquantes)
+                window.location.href = installUrl; 
+            });
         });
     </script>
 </body>
