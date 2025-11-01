@@ -9,7 +9,40 @@ const { createOrUpdateMessageSub } = require("./subtitles");
 const translationQueue = require("./queues/translationQueue");
 const baseLanguages = require("./langs/base.lang.json");
 const isoCodeMapping = require("./langs/iso_code_mapping.json");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
+const SUBTITLES_DIR = path.join(process.cwd(), "subtitles"); // Chemin absolu du dossier de sous-titres
+
+// 💡 NOUVELLE FONCTION : Calcule le chemin local du fichier SRT attendu
+function getLocalFilePath(targetLanguage, imdbid, season, episode, provider) {
+    const fileName = `${imdbid}-translated-${episode}-1.srt`;
+    const folderPath = path.join(
+        SUBTITLES_DIR,
+        provider,
+        targetLanguage,
+        imdbid,
+        `season${season}`
+    );
+    return path.join(folderPath, fileName);
+}
+
+// 💡 NOUVELLE FONCTION : Vérifie si le fichier existe et contient le message temporaire
+function isTemporaryMessageFile(filePath) {
+    if (!fs.existsSync(filePath)) {
+        return false;
+    }
+    
+    try {
+        const content = fs.readFileSync(filePath, "utf8");
+        // Le message d'attente est connu et constant, vérifions sa présence.
+        const temporaryMessage = "Translating subtitles. Please wait 1 minute and try again.";
+        return content.includes(temporaryMessage);
+    } catch (e) {
+        console.error("Erreur lors de la lecture du fichier pour vérifier le message temporaire:", e.message);
+        return false;
+    }
+}
 
 function generateSubtitleUrl(
   targetLanguage,
@@ -25,8 +58,8 @@ function generateSubtitleUrl(
 const builder = new addonBuilder({
   id: "org.autotranslate.geanpn",
   version: "1.0.2",
-  name: "Auto Subtitle Translate by geanpn",
-  logo: "./subtitles/logo.webp",
+  name: "Translate by k8v",
+  logo: "https://i.postimg.cc/0y8d3jm0/traduire.png",
   behaviorHints: {
     configurable: true,
     configurationRequired: true,
@@ -54,6 +87,10 @@ const builder = new addonBuilder({
       key: "model_name",
       type: "text",
     },
+	{
+      key: "tmdb_apikey",
+      type: "text",
+    },
   ],
   description:
     "This addon takes subtitles from OpenSubtitlesV3 then translates into desired language using Google Translate, or ChatGPT (OpenAI Compatible Providers). For donations:in progress Bug report: geanpn@gmail.com",
@@ -66,7 +103,9 @@ builder.defineSubtitlesHandler(async function (args) {
   console.log("Subtitle request received:", args);
   const { id, config, stream } = args;
 
-  const targetLanguage = languages.getKeyFromValue(
+  const tmdbApiKey = config.tmdb_apikey;
+
+  const targetLanguage = languages.getKeyFromValue(
     config.translateto,
     config.provider
   );
@@ -97,6 +136,28 @@ builder.defineSubtitlesHandler(async function (args) {
   const { type, season = null, episode = null } = parseId(id);
 
   try {
+    // 💡 NOUVEAU: LOGIQUE DE ROBUSTESSE POUR FICHIER TEMPORAIRE
+    const tempSrtPath = getLocalFilePath(
+        targetLanguage,
+        imdbid,
+        season,
+        episode,
+        config.provider
+    );
+
+    if (isTemporaryMessageFile(tempSrtPath)) {
+        console.log("Fichier temporaire 'en traduction...' trouvé. Suppression pour forcer une nouvelle tentative.");
+        try {
+            // Supprime le fichier temporaire
+            fs.unlinkSync(tempSrtPath);
+            // La recherche en DB se fera ensuite et échouera car le fichier n'existe plus,
+            // forçant le flow à relancer la recherche OpenSubtitles et la mise en file d'attente.
+        } catch (e) {
+            // Si la suppression échoue, on continue.
+            console.error("Erreur lors de la suppression du fichier temporaire:", e.message);
+        }
+    }
+
     // 1. Check if already exists in database
     const existingSubtitle = await connection.getsubtitles(
       imdbid,
@@ -139,7 +200,8 @@ builder.defineSubtitlesHandler(async function (args) {
       imdbid,
       season,
       episode,
-      targetLanguage
+      targetLanguage,
+	  tmdbApiKey
     );
 
     if (!subs || subs.length === 0) {
@@ -306,7 +368,6 @@ if (process.env.PUBLISH_IN_STREMIO_STORE == "TRUE") {
 
 const port = process.env.PORT || 3000;
 const address = process.env.ADDRESS || "0.0.0.0";
-const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const getRouter = require("stremio-addon-sdk/src/getRouter");
